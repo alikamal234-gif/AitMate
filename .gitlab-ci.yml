@@ -1,0 +1,71 @@
+# AitMate — GitLab CI/CD Pipeline Configuration
+# Multi-stage validation: Lint, Test, Security, and Build
+
+stages:
+  - lint
+  - test
+  - security
+  - build
+
+default:
+  interruptible: true
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  NODE_ENV: "production"
+
+cache:
+  paths:
+    - .cache/pip
+    - node_modules/
+
+# -------------------------------------------------------------
+# Stage 1: Linting & Static Type Checking
+# -------------------------------------------------------------
+python:lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - pip install ruff
+    - ruff check backend/
+
+frontend:typecheck:
+  stage: lint
+  image: node:20-slim
+  script:
+    - npm ci
+    - npm run typecheck
+
+# -------------------------------------------------------------
+# Stage 2: Automated Tests
+# -------------------------------------------------------------
+backend:tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install -r backend/requirements.txt
+    - pytest backend/tests/ -v
+
+# -------------------------------------------------------------
+# Stage 3: Security & Secret Scans
+# -------------------------------------------------------------
+security:secret-check:
+  stage: security
+  image: alpine:latest
+  script:
+    - echo "Running secret pattern scan on repository..."
+    - (! grep -rE "(sk-[a-zA-Z0-9_\-]{20,}|glpat-[a-zA-Z0-9_\-]{20,})" --exclude-dir={.git,node_modules,.venv,dist} .)
+
+# -------------------------------------------------------------
+# Stage 4: Production Build
+# -------------------------------------------------------------
+frontend:build:
+  stage: build
+  image: node:20-slim
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
