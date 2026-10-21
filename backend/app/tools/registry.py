@@ -170,6 +170,87 @@ class ExternalDispatchTool(BaseTool):
 
 
 # -------------------------------------------------------------
+# Tool 6: Task History Inspector Tool (Safe Read-Only)
+# -------------------------------------------------------------
+class TaskHistoryParams(BaseModel):
+    limit: int = Field(default=5, ge=1, le=20, description="Number of recent tasks to inspect")
+    status_filter: Optional[str] = Field(default=None, description="Optional status filter")
+
+
+class TaskHistoryTool(BaseTool):
+    name = "task_history_tool"
+    description = "Inspect authorized local task history and outcome summaries."
+    risk_level = RiskLevel.LOW
+    requires_approval = False
+    parameters_schema = TaskHistoryParams
+
+    async def execute(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        from sqlmodel import Session, select, desc
+        from backend.app.storage.database import engine
+        from backend.app.storage.models import TaskRecord
+
+        validated = self.parameters_schema(**parameters)
+        with Session(engine, expire_on_commit=False) as session:
+            statement = select(TaskRecord).order_by(desc(TaskRecord.created_at))
+            if validated.status_filter:
+                statement = statement.where(TaskRecord.status == validated.status_filter)
+            statement = statement.limit(validated.limit)
+            tasks = session.exec(statement).all()
+
+            return {
+                "count": len(tasks),
+                "tasks": [
+                    {
+                        "id": t.id,
+                        "instruction": t.instruction,
+                        "status": t.status,
+                        "summary": t.summary,
+                        "created_at": t.created_at,
+                    }
+                    for t in tasks
+                ],
+            }
+
+
+# -------------------------------------------------------------
+# Tool 7: Text Diff Generator Tool (Safe Read-Only Diff Preview)
+# -------------------------------------------------------------
+class DiffParams(BaseModel):
+    original_text: str = Field(..., description="Original content")
+    modified_text: str = Field(..., description="Modified content")
+    filename: Optional[str] = Field(default="document.txt", description="Target filename")
+
+
+class TextDiffTool(BaseTool):
+    name = "text_diff_tool"
+    description = "Generate a unified line-by-line diff to inspect changes before writing."
+    risk_level = RiskLevel.LOW
+    requires_approval = False
+    parameters_schema = DiffParams
+
+    async def execute(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        import difflib
+
+        validated = self.parameters_schema(**parameters)
+        orig_lines = validated.original_text.splitlines(keepends=True)
+        mod_lines = validated.modified_text.splitlines(keepends=True)
+        diff = list(
+            difflib.unified_diff(
+                orig_lines,
+                mod_lines,
+                fromfile=f"a/{validated.filename}",
+                tofile=f"b/{validated.filename}",
+            )
+        )
+        return {
+            "filename": validated.filename,
+            "has_changes": len(diff) > 0,
+            "diff_text": "".join(diff),
+            "lines_changed": len(diff),
+        }
+
+
+# -------------------------------------------------------------
 # Central Tool Registry
 # -------------------------------------------------------------
 class ToolRegistry:
@@ -183,6 +264,8 @@ class ToolRegistry:
         self.register(DraftGeneratorTool())
         self.register(ScopedFileReaderTool())
         self.register(ExternalDispatchTool())
+        self.register(TaskHistoryTool())
+        self.register(TextDiffTool())
 
     def register(self, tool: BaseTool) -> None:
         """Register a new mediated tool."""
