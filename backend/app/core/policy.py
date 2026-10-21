@@ -96,6 +96,10 @@ class PermissionEngine:
                     requires_approval=False,
                 )
 
+        # Dynamic Check: Browser form submission is high-risk
+        if tool_name == "browser_tool" and parameters.get("action") == "submit_form":
+            is_tool_high_risk = True
+
         # 4. High-Risk Tools Require Human Approval
         if is_tool_high_risk:
             return PolicyDecision(

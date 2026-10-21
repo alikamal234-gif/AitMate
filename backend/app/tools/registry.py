@@ -1,25 +1,10 @@
 """Registered Tools and Tool Registry Interface."""
 
-from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, Field
 from backend.app.core.config import settings
 from backend.app.core.policy import RiskLevel
-
-
-class BaseTool(ABC):
-    """Abstract base contract for all AitMate tools."""
-
-    name: str
-    description: str
-    risk_level: RiskLevel
-    requires_approval: bool
-    parameters_schema: Type[BaseModel]
-
-    @abstractmethod
-    async def execute(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute the tool with validated arguments."""
-        pass
+from backend.app.tools.base import BaseTool
 
 
 # -------------------------------------------------------------
@@ -266,6 +251,8 @@ class ToolRegistry:
         self.register(ExternalDispatchTool())
         self.register(TaskHistoryTool())
         self.register(TextDiffTool())
+        from backend.app.tools.browser import BrowserTool
+        self.register(BrowserTool())
 
     def register(self, tool: BaseTool) -> None:
         """Register a new mediated tool."""
