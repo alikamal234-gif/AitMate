@@ -117,3 +117,17 @@ class AuditEventRecord(SQLModel, table=True):
             return json.loads(self.details_json)
         except Exception:
             return {}
+
+
+class MemoryRecord(SQLModel, table=True):
+    """User-controlled local memory entity."""
+
+    __tablename__ = "memories"
+
+    id: str = Field(default_factory=generate_uuid, primary_key=True)
+    key: str = Field(..., index=True, description="Topic, preference key, or identifier")
+    content: str = Field(..., description="Stored text memory or preference value")
+    category: str = Field(default="preference", index=True, description="preference, snippet, project, custom")
+    created_at: str = Field(default_factory=utc_now_iso)
+    updated_at: str = Field(default_factory=utc_now_iso)
+

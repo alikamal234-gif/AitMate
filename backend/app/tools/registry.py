@@ -256,6 +256,14 @@ class ToolRegistry:
         from backend.app.tools.email_workflow import EmailDraftTool, EmailSendTool
         self.register(EmailDraftTool())
         self.register(EmailSendTool())
+        from backend.app.tools.gitlab_tool import (
+            GitLabProjectSummaryTool,
+            GitLabMergeRequestTool,
+            GitLabCiStatusTool,
+        )
+        self.register(GitLabProjectSummaryTool())
+        self.register(GitLabMergeRequestTool())
+        self.register(GitLabCiStatusTool())
 
     def register(self, tool: BaseTool) -> None:
         """Register a new mediated tool."""
