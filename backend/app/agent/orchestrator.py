@@ -15,6 +15,8 @@ from backend.app.core.security import redact_dict
 from backend.app.storage.database import engine
 from backend.app.storage.models import ApprovalRecord, AuditEventRecord, TaskRecord
 from backend.app.tools.registry import tool_registry
+from backend.app.services.notifications import notification_service, NotificationPriority
+from backend.app.services.background_manager import background_manager, BackgroundMode
 
 logger = logging.getLogger("aitmate.orchestrator")
 
@@ -79,23 +81,28 @@ class Orchestrator:
 
     async def execute_task(self, task_id: str) -> TaskRecord:
         """Execute task steps within bounded loop until completion or approval gate."""
+        if background_manager.mode == BackgroundMode.PAUSED:
+            logger.warning("Execution of task '%s' deferred: background execution is paused.", task_id)
+            with Session(engine, expire_on_commit=False) as session:
+                return session.get(TaskRecord, task_id)
+
         with Session(engine, expire_on_commit=False) as session:
             task = session.get(TaskRecord, task_id)
             if not task:
                 raise ValueError(f"Task '{task_id}' not found.")
 
-            # If task was in planning or awaiting_approval, move to running
+            plan = task.get_plan()
+            if not plan:
+                task = await self.plan_task(task_id)
+                plan = task.get_plan()
+
+            # If task is in planning or awaiting_approval, move to running
             if task.status in (TaskState.PLANNING.value, TaskState.AWAITING_APPROVAL.value):
                 validate_transition(task.status, TaskState.RUNNING.value)
                 task.status = TaskState.RUNNING.value
                 task.updated_at = datetime.now(timezone.utc).isoformat()
                 session.add(task)
                 session.commit()
-
-            plan = task.get_plan()
-            if not plan:
-                task = await self.plan_task(task_id)
-                plan = task.get_plan()
 
         # Step through plan sequentially
         while True:
@@ -120,6 +127,12 @@ class Orchestrator:
                         event_type="task_completed",
                         task_id=task.id,
                         summary=task.summary,
+                    )
+                    notification_service.send(
+                        title="Task Completed",
+                        body=task.summary,
+                        priority=NotificationPriority.INFO,
+                        task_id=task.id,
                     )
                     break
 
@@ -160,6 +173,12 @@ class Orchestrator:
                         tool_name=tool_name,
                         summary=f"Tool call blocked by policy: {decision.reason}",
                         details={"target": target, "decision": decision.model_dump()},
+                    )
+                    notification_service.send(
+                        title="Policy Denial",
+                        body=f"Execution blocked: {decision.reason}",
+                        priority=NotificationPriority.ERROR,
+                        task_id=task.id,
                     )
                     break
 
@@ -207,6 +226,12 @@ class Orchestrator:
                             summary=f"Approval requested for tool '{tool_name}' on target '{target}'",
                             details={"reason": decision.reason, "expires_at": expires_at},
                         )
+                        notification_service.send(
+                            title="Approval Required",
+                            body=f"Tool '{tool_name}' requires authorization on '{target}'.",
+                            priority=NotificationPriority.APPROVAL_REQUIRED,
+                            task_id=task.id,
+                        )
                         # Halt execution until user approval is received
                         break
 
@@ -248,6 +273,12 @@ class Orchestrator:
                         task_id=task.id,
                         tool_name=tool_name,
                         summary=f"Tool '{tool_name}' execution failed: {step_error}",
+                    )
+                    notification_service.send(
+                        title="Task Failed",
+                        body=f"Tool '{tool_name}' failed: {step_error}",
+                        priority=NotificationPriority.ERROR,
+                        task_id=task.id,
                     )
                     break
                 else:
@@ -348,6 +379,12 @@ class Orchestrator:
                 event_type="task_cancelled",
                 task_id=task.id,
                 summary="Task cancelled by user request.",
+            )
+            notification_service.send(
+                title="Task Cancelled",
+                body="Task cancelled by user.",
+                priority=NotificationPriority.WARNING,
+                task_id=task.id,
             )
             return task
 

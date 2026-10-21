@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.routes import router as api_router
 from backend.app.api.tasks_routes import router as tasks_router
+from backend.app.api.notifications_routes import router as notifications_router
 from backend.app.core.config import settings
 from backend.app.storage.database import init_db
 
@@ -49,6 +50,7 @@ app.add_middleware(
 # Register routes
 app.include_router(api_router)
 app.include_router(tasks_router)
+app.include_router(notifications_router)
 
 
 @app.get("/", tags=["Root"])
