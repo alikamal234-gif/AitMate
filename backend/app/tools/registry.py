@@ -253,6 +253,9 @@ class ToolRegistry:
         self.register(TextDiffTool())
         from backend.app.tools.browser import BrowserTool
         self.register(BrowserTool())
+        from backend.app.tools.email_workflow import EmailDraftTool, EmailSendTool
+        self.register(EmailDraftTool())
+        self.register(EmailSendTool())
 
     def register(self, tool: BaseTool) -> None:
         """Register a new mediated tool."""
