@@ -30,7 +30,7 @@ async def create_task(
 ):
     """Create a new task, generate a bounded plan, and start execution."""
     task = orchestrator.create_task(payload.instruction)
-    orchestrator.plan_task(task.id)
+    await orchestrator.plan_task(task.id)
     # Execute until completion or approval pause
     updated_task = await orchestrator.execute_task(task.id)
     return {

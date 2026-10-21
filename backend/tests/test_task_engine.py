@@ -116,7 +116,7 @@ def test_high_risk_tool_requires_approval():
 async def test_safe_read_only_task_executes_to_completion():
     """Verify safe tasks (reading status and summarization) execute fully to completed state."""
     task = orchestrator.create_task("Read system status and summarize readiness")
-    orchestrator.plan_task(task.id)
+    await orchestrator.plan_task(task.id)
     updated = await orchestrator.execute_task(task.id)
 
     assert updated.status == TaskState.COMPLETED.value
@@ -128,7 +128,7 @@ async def test_safe_read_only_task_executes_to_completion():
 async def test_high_risk_task_halts_at_approval_gate():
     """Verify high-risk task (dispatch) automatically pauses in AWAITING_APPROVAL."""
     task = orchestrator.create_task("Send alert dispatch to partner")
-    orchestrator.plan_task(task.id)
+    await orchestrator.plan_task(task.id)
     updated = await orchestrator.execute_task(task.id)
 
     # First step (draft) completes, second step (dispatch) halts in AWAITING_APPROVAL
@@ -148,7 +148,7 @@ async def test_high_risk_task_halts_at_approval_gate():
 async def test_rejected_approval_fails_task_without_retries():
     """Verify user rejecting an approval marks the task FAILED without silent retries."""
     task = orchestrator.create_task("Post critical update to external channel")
-    orchestrator.plan_task(task.id)
+    await orchestrator.plan_task(task.id)
     await orchestrator.execute_task(task.id)
 
     # Fetch approval
@@ -176,7 +176,7 @@ async def test_rejected_approval_fails_task_without_retries():
 async def test_approved_action_resumes_execution():
     """Verify user approving an action allows the tool to run and completes the task."""
     task = orchestrator.create_task("Transmit notification to team")
-    orchestrator.plan_task(task.id)
+    await orchestrator.plan_task(task.id)
     await orchestrator.execute_task(task.id)
 
     res = client.get("/api/v1/approvals", headers=AUTH_HEADERS)

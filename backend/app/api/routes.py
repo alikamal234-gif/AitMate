@@ -63,3 +63,18 @@ async def get_status(
         allowed_domains_count=len(settings.get_allowed_domain_list()),
         session_token_prefix=settings.API_TOKEN[:6] + "...",
     )
+
+
+@router.get(
+    "/provider/test",
+    summary="AI Provider Connectivity Test",
+    description="Actively test configured model provider connectivity and report real latency.",
+)
+async def test_provider(
+    token: str = Depends(verify_session_token),
+):
+    """Test AI provider connection."""
+    from backend.app.agent.providers.factory import active_provider
+
+    result = await active_provider.test_connection()
+    return result.model_dump()
