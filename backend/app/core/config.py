@@ -1,7 +1,7 @@
 """Application Configuration & Environment Settings."""
 
 import secrets
-from typing import List
+from typing import List, Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -54,6 +54,16 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = Field(
         default="llama3.2:latest",
         alias="AITMATE_OLLAMA_MODEL",
+    )
+    # Groq Cloud Provider Settings
+    GROQ_API_KEY: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
+    GROQ_MODEL: str = Field(
+        default="llama-3.3-70b-versatile",
+        alias="AITMATE_GROQ_MODEL",
+    )
+    GROQ_BASE_URL: str = Field(
+        default="https://api.groq.com/openai/v1",
+        alias="AITMATE_GROQ_BASE_URL",
     )
     BROWSER_HEADLESS: bool = Field(default=False, alias="AITMATE_BROWSER_HEADLESS")
     ALLOWED_DOMAINS: str = Field(

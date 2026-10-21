@@ -5,7 +5,8 @@ import {
   Globe,
   Lock,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
 import { HealthResponse } from '../../types/api';
 
@@ -55,11 +56,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ health }) => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-            <span className="font-bold text-slate-200">Built-in Safe Mock Provider</span>
+            <span className="font-bold text-slate-200">Built-in Safe Mock</span>
             <p className="text-slate-400 text-[11px]">
-              Active by default. Operates offline without external network transmission, GPU dependencies, or API credit consumption.
+              Offline deterministic provider without external network transmission or API credits.
             </p>
             <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-semibold mt-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -68,12 +69,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ health }) => {
           </div>
 
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-            <span className="font-bold text-slate-200">Ollama Local Integration</span>
+            <span className="font-bold text-slate-200">Ollama Local</span>
             <p className="text-slate-400 text-[11px]">
-              Point AitMate to your local Ollama server at <code className="text-emerald-300">http://127.0.0.1:11434</code>. Configure model name in <code className="text-emerald-300">.env</code>.
+              Local inference at <code className="text-emerald-300">http://127.0.0.1:11434</code>. Private on-premise execution.
             </p>
             <div className="flex items-center gap-1.5 text-slate-400 text-[11px] mt-1 font-mono">
-              Model: llama3.2:latest
+              llama3.2:latest
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+            <span className="font-bold text-amber-200">Groq Cloud LPU</span>
+            <p className="text-slate-400 text-[11px]">
+              Ultra-fast inference via Groq LPUs. Configure <code className="text-amber-300">GROQ_API_KEY</code> in <code className="text-amber-300">.env</code>.
+            </p>
+            <div className="flex items-center gap-1.5 text-amber-400 text-[11px] font-semibold mt-1">
+              <Zap className="h-3.5 w-3.5" />
+              <span>llama-3.3-70b-versatile</span>
             </div>
           </div>
         </div>

@@ -12,6 +12,7 @@ security_scheme = HTTPBearer(auto_error=False)
 # Patterns that match API keys, tokens, or common secret structures
 SECRET_PATTERNS = [
     (re.compile(r"sk-[a-zA-Z0-9_\-]{16,}", re.IGNORECASE), "[REDACTED_API_KEY]"),
+    (re.compile(r"gsk_[a-zA-Z0-9_\-]{20,}", re.IGNORECASE), "[REDACTED_GROQ_KEY]"),
     (re.compile(r"bearer\s+[a-zA-Z0-9_\-\.]{16,}", re.IGNORECASE), "Bearer [REDACTED_TOKEN]"),
     (re.compile(r"glpat-[a-zA-Z0-9_\-]{16,}", re.IGNORECASE), "[REDACTED_GITLAB_TOKEN]"),
     (re.compile(r"password['\"]?\s*[:=]\s*['\"][^'\"]+['\"]", re.IGNORECASE), 'password="[REDACTED_PWD]"'),

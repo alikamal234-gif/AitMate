@@ -74,7 +74,8 @@ async def test_provider(
     token: str = Depends(verify_session_token),
 ):
     """Test AI provider connection."""
-    from backend.app.agent.providers.factory import active_provider
+    from backend.app.agent.providers.factory import get_ai_provider
 
-    result = await active_provider.test_connection()
+    provider = get_ai_provider()
+    result = await provider.test_connection()
     return result.model_dump()

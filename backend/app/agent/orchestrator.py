@@ -50,7 +50,7 @@ class Orchestrator:
 
     async def plan_task(self, task_id: str) -> TaskRecord:
         """Generate a bounded step-by-step plan for the task using configured AI provider."""
-        from backend.app.agent.providers.factory import active_provider
+        from backend.app.agent.providers.factory import get_ai_provider
 
         with Session(engine, expire_on_commit=False) as session:
             task = session.get(TaskRecord, task_id)
@@ -63,8 +63,9 @@ class Orchestrator:
             session.add(task)
             session.commit()
 
-            # Delegate to active AI provider (Mock, Ollama, etc.)
-            plan = await active_provider.generate_plan(task.instruction, tool_registry.list_all())
+            # Delegate to active AI provider (Mock, Ollama, Groq, etc.)
+            provider = get_ai_provider()
+            plan = await provider.generate_plan(task.instruction, tool_registry.list_all())
             task.set_plan(plan)
             session.add(task)
             session.commit()

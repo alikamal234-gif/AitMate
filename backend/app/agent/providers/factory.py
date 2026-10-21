@@ -3,12 +3,19 @@
 from backend.app.agent.providers.base import BaseAIProvider
 from backend.app.agent.providers.mock_provider import MockProvider
 from backend.app.agent.providers.ollama_provider import OllamaProvider
+from backend.app.agent.providers.groq_provider import GroqProvider
 from backend.app.core.config import settings
 
 
 def get_ai_provider() -> BaseAIProvider:
     """Instantiate and return the configured AI provider adapter."""
     provider_type = settings.AI_PROVIDER.lower().strip()
+    if provider_type == "groq":
+        return GroqProvider(
+            api_key=settings.GROQ_API_KEY,
+            model=settings.GROQ_MODEL,
+            base_url=settings.GROQ_BASE_URL,
+        )
     if provider_type == "ollama":
         return OllamaProvider(
             base_url=settings.OLLAMA_BASE_URL,
