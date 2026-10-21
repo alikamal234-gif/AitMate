@@ -110,9 +110,15 @@ class ScopedFileReaderTool(BaseTool):
     async def execute(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         import os
         validated = self.parameters_schema(**parameters)
-        cleaned_path = os.path.normpath(validated.relative_path)
-        # Prevent directory traversal
-        if cleaned_path.startswith("..") or os.path.isabs(cleaned_path):
+        # Prevent directory traversal, absolute paths, and drive-root escapes on all platforms
+        raw = validated.relative_path.strip()
+        cleaned_path = os.path.normpath(raw)
+        if (
+            cleaned_path.startswith("..")
+            or os.path.isabs(cleaned_path)
+            or raw.startswith(("/", "\\"))
+            or ":" in raw
+        ):
             raise PermissionError("Access denied: File access outside the workspace is prohibited.")
 
         if not os.path.exists(cleaned_path):

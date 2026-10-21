@@ -26,6 +26,11 @@ class BrowserActionParams(BaseModel):
     )
 
 
+def wrap_untrusted(content: str) -> str:
+    """Encapsulate untrusted external web content inside explicit security boundaries."""
+    return f"<untrusted_web_content>\n{content}\n</untrusted_web_content>"
+
+
 class BrowserTool(BaseTool):
     """Controlled web browser automation tool governed by domain allowlists."""
 
