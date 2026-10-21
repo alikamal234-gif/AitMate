@@ -2,20 +2,22 @@ import { useState, useEffect } from 'react';
 import {
   Bot,
   ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
   Activity,
   ListTodo,
   Settings,
   MessageSquare,
   RefreshCw,
-  Globe,
-  Database,
   Lock,
-  Cpu
+  Cpu,
+  AlertTriangle
 } from 'lucide-react';
 import { apiClient } from './lib/api-client';
-import { HealthResponse, SystemStatusResponse } from './types/api';
+import { HealthResponse, SystemStatusResponse, TaskRecord } from './types/api';
+import { CommandCenter } from './components/chat/CommandCenter';
+import { TasksView } from './components/tasks/TasksView';
+import { ApprovalCenter } from './components/approvals/ApprovalCenter';
+import { ActivityView } from './components/activity/ActivityView';
+import { SettingsView } from './components/settings/SettingsView';
 
 type NavTab = 'chat' | 'tasks' | 'approvals' | 'activity' | 'settings';
 
@@ -23,6 +25,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('chat');
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState<number>(0);
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -42,6 +45,10 @@ export default function App() {
       const statusData = await apiClient.getSystemStatus();
       setSystemStatus(statusData);
 
+      // Fetch pending approvals count
+      const approvals = await apiClient.getApprovals('pending');
+      setPendingApprovalCount(approvals.length);
+
       setBackendConnected(true);
     } catch (err: unknown) {
       setBackendConnected(false);
@@ -54,9 +61,13 @@ export default function App() {
 
   useEffect(() => {
     checkConnection();
-    const interval = setInterval(checkConnection, 10000);
+    const interval = setInterval(checkConnection, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleTaskCreated = (_task: TaskRecord) => {
+    checkConnection();
+  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 bg-grid-pattern">
@@ -123,9 +134,9 @@ export default function App() {
               <ShieldCheck className="h-4 w-4" />
               <span>Approval Center</span>
             </div>
-            {systemStatus && systemStatus.pending_approvals > 0 ? (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-                {systemStatus.pending_approvals}
+            {pendingApprovalCount > 0 ? (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse font-bold">
+                {pendingApprovalCount}
               </span>
             ) : (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
@@ -224,10 +235,10 @@ export default function App() {
         </header>
 
         {/* Viewport Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {/* Connection Error Banner if Backend is down */}
           {!backendConnected && (
-            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start space-x-3">
+            <div className="max-w-4xl mx-auto mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start space-x-3">
               <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
               <div className="text-xs">
                 <h2 className="font-semibold text-rose-300">Local Backend Offline</h2>
@@ -235,199 +246,33 @@ export default function App() {
                   AitMate requires the local Python agent service running on{' '}
                   <code className="text-rose-200">127.0.0.1:8000</code>.
                 </p>
-                <p className="text-slate-400 mt-1 font-mono text-[11px]">
-                  Start command: python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-                </p>
                 {errorMsg && <p className="text-rose-400/80 mt-1">Details: {errorMsg}</p>}
               </div>
             </div>
           )}
 
-          {/* Tab 1: Command Center / Chat */}
+          {/* Tab 1: Command Center */}
           {activeTab === 'chat' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-900/80 to-slate-900/40 border border-slate-800 shadow-xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-white tracking-tight">
-                      Welcome to AitMate
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Useful autonomy, with the user in control. Submit instructions, inspect
-                      execution plans, and approve sensitive actions.
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
-                    <Globe className="h-3.5 w-3.5 text-blue-400" />
-                    <span>Allowed domains: {health?.allowed_domains?.length || 4}</span>
-                  </div>
-                </div>
-
-                {/* Instruction Input Box */}
-                <div className="mt-4 p-3 rounded-xl bg-slate-950/80 border border-slate-800 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30 transition">
-                  <textarea
-                    rows={3}
-                    placeholder="E.g., Summarize latest tech news from wikipedia.org and draft a briefing..."
-                    className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none"
-                  />
-                  <div className="mt-2 pt-2 border-t border-slate-900 flex items-center justify-between text-xs text-slate-400">
-                    <span className="flex items-center gap-1.5 text-[11px]">
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                      Actions verified by server policy before execution
-                    </span>
-                    <button className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold text-xs transition shadow-md shadow-emerald-600/20">
-                      Submit Task
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* System Architecture Readiness Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">FastAPI Backend</span>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  </div>
-                  <p className="text-sm font-semibold text-white">
-                    {backendConnected ? 'Operational (127.0.0.1)' : 'Offline'}
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Version: {health?.version || '0.1.0'} | Port: 8000
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">Security Boundary</span>
-                    <Lock className="h-4 w-4 text-emerald-400" />
-                  </div>
-                  <p className="text-sm font-semibold text-white">Bearer Auth Active</p>
-                  <p className="text-[11px] text-slate-400 font-mono">
-                    Token: {systemStatus?.session_token_prefix || 'Active'}
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">Local SQLite Store</span>
-                    <Database className="h-4 w-4 text-emerald-400" />
-                  </div>
-                  <p className="text-sm font-semibold text-white">aitmate.db</p>
-                  <p className="text-[11px] text-slate-400">Append-only audit & tasks</p>
-                </div>
-              </div>
-            </div>
+            <CommandCenter
+              onTaskCreated={handleTaskCreated}
+              onNavigateToApprovals={() => setActiveTab('approvals')}
+            />
           )}
 
-          {/* Tab 2: Tasks */}
-          {activeTab === 'tasks' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-white">Task Lifecycle Monitor</h2>
-                <span className="text-xs text-slate-400">
-                  Total Active: {systemStatus?.active_tasks || 0}
-                </span>
-              </div>
-              <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
-                <ListTodo className="h-8 w-8 text-slate-600 mx-auto" />
-                <h3 className="text-sm font-medium text-slate-300">No active tasks running</h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Submit a prompt in the Command Center to initiate a multi-step bounded agent task.
-                </p>
-              </div>
-            </div>
-          )}
+          {/* Tab 2: Tasks View */}
+          {activeTab === 'tasks' && <TasksView />}
 
-          {/* Tab 3: Approvals */}
+          {/* Tab 3: Approvals View */}
           {activeTab === 'approvals' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-white">Approval Center</h2>
-                  <p className="text-xs text-slate-400">
-                    High-risk operations are blocked server-side until you review and authorize them.
-                  </p>
-                </div>
-              </div>
-              <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
-                <ShieldCheck className="h-8 w-8 text-emerald-500/60 mx-auto" />
-                <h3 className="text-sm font-medium text-slate-300">All clear — No pending approvals</h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  When a task attempts a sensitive action (message sending, external form submission,
-                  or file modifications), an approval request with the exact payload will appear here.
-                </p>
-              </div>
-            </div>
+            <ApprovalCenter onApprovalResolved={checkConnection} />
           )}
 
-          {/* Tab 4: Activity */}
-          {activeTab === 'activity' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-white">Auditable Event Log</h2>
-                <span className="text-xs text-slate-400 font-mono">aitmate_audit.log</span>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 font-mono text-xs text-slate-400 space-y-2">
-                <div className="flex items-center justify-between text-slate-500 text-[11px] border-b border-slate-800/80 pb-1">
-                  <span>TIMESTAMP</span>
-                  <span>EVENT</span>
-                  <span>TARGET</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-300 py-1">
-                  <span>{new Date().toLocaleTimeString()}</span>
-                  <span className="text-emerald-400 font-semibold">SYSTEM_BOOTSTRAP</span>
-                  <span>127.0.0.1:8000</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-300 py-1">
-                  <span>{new Date().toLocaleTimeString()}</span>
-                  <span className="text-blue-400 font-semibold">HEALTH_VERIFIED</span>
-                  <span>/api/v1/health</span>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Tab 4: Activity View */}
+          {activeTab === 'activity' && <ActivityView />}
 
-          {/* Tab 5: Settings */}
+          {/* Tab 5: Settings View */}
           {activeTab === 'settings' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-4">
-                <h2 className="text-base font-bold text-white">AI Provider Configuration</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
-                    <span className="font-semibold text-slate-200">Active Provider</span>
-                    <p className="text-emerald-400 font-mono font-medium">
-                      {health?.active_provider || 'Mock (Safe Offline)'}
-                    </p>
-                    <p className="text-slate-400 text-[11px]">
-                      Runs offline deterministically without consuming API credits or sending data off-device.
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
-                    <span className="font-semibold text-slate-200">Ollama Local Integration</span>
-                    <p className="text-slate-400 font-mono text-[11px]">http://127.0.0.1:11434</p>
-                    <p className="text-slate-400 text-[11px]">
-                      Configurable in <code className="text-emerald-300">.env</code> for private on-device LLMs.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-4">
-                <h2 className="text-base font-bold text-white">Browser Domain Allowlist</h2>
-                <div className="flex flex-wrap gap-2">
-                  {health?.allowed_domains?.map((domain) => (
-                    <span
-                      key={domain}
-                      className="px-2.5 py-1 rounded-md bg-slate-800 text-xs text-slate-300 border border-slate-700/60 font-mono flex items-center gap-1"
-                    >
-                      <Globe className="h-3 w-3 text-emerald-400" />
-                      {domain}
-                    </span>
-                  )) || <span className="text-xs text-slate-500">None configured</span>}
-                </div>
-              </div>
-            </div>
+            <SettingsView health={health} />
           )}
         </div>
       </main>
