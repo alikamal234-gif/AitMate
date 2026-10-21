@@ -5,7 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.routes import router as api_router
+from backend.app.api.tasks_routes import router as tasks_router
 from backend.app.core.config import settings
+from backend.app.storage.database import init_db
 
 # Setup logging
 logging.basicConfig(
@@ -20,6 +22,8 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and graceful shutdown."""
     logger.info("Initializing %s v%s", settings.APP_NAME, settings.APP_VERSION)
     logger.info("Server bound to %s:%d", settings.HOST, settings.PORT)
+    logger.info("Initializing SQLite persistence layer...")
+    init_db()
     logger.info("Configured AI Provider: %s", settings.AI_PROVIDER)
     logger.info("Active Domain Allowlist: %s", settings.get_allowed_domain_list())
     yield
@@ -44,6 +48,7 @@ app.add_middleware(
 
 # Register routes
 app.include_router(api_router)
+app.include_router(tasks_router)
 
 
 @app.get("/", tags=["Root"])
