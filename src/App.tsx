@@ -18,6 +18,7 @@ import { TasksView } from './components/tasks/TasksView';
 import { ApprovalCenter } from './components/approvals/ApprovalCenter';
 import { ActivityView } from './components/activity/ActivityView';
 import { SettingsView } from './components/settings/SettingsView';
+import { FloatingQuickAssistant } from './components/widget/FloatingQuickAssistant';
 
 type NavTab = 'chat' | 'tasks' | 'approvals' | 'activity' | 'settings';
 
@@ -276,6 +277,13 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* Floating Quick Assistant (Hideable / Showable Floating Pill with Alt + A) */}
+      <FloatingQuickAssistant
+        onTaskCreated={handleTaskCreated}
+        onOpenFullApp={() => setActiveTab('chat')}
+        providerName={health?.active_provider || 'groq'}
+      />
     </div>
   );
 }
